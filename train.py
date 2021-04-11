@@ -25,8 +25,8 @@ if tf.VERSION >= '2':
                                                   })
 
 
-import model, sample, encoder
-from load_dataset import load_dataset, Sampler
+from src import model, sample, encoder
+from src.load_dataset import load_dataset, Sampler
 
 CHECKPOINT_DIR = 'checkpoint'
 SAMPLE_DIR = 'samples'
@@ -83,12 +83,14 @@ def randomize(context, hparams, p):
     else:
         return context
 
+SAMPLE_SIZE = 256
+
 
 def main():
     args = parser.parse_args()
     enc = encoder.get_encoder(args.model_name, models_dir=args.models_dir)
     hparams = model.default_hparams()
-    with open(os.path.join('models', args.model_name, 'hparams.json')) as f:
+    with open(os.path.join(args.models_dir, args.model_name, 'hparams.json')) as f:
         hparams.override_from_dict(json.load(f))
 
     if args.sample_length > hparams.n_ctx:
@@ -98,7 +100,7 @@ def main():
     with tf.Session() as sess:
         # Fully static shape required to make memory accounting in
         # twremat accurate.
-        train_context = tf.placeholder(tf.int32, [args.batch_size, 1024])
+        train_context = tf.placeholder(tf.int32, [args.batch_size, SAMPLE_SIZE])
         train_context_in = randomize(train_context, hparams, args.noise)
         train_output = model.model(hparams=hparams, X=train_context_in)
         train_loss = tf.reduce_mean(
@@ -178,10 +180,10 @@ def main():
             if ckpt is None:
                 # Get fresh GPT weights if new run.
                 ckpt = tf.train.latest_checkpoint(
-                    os.path.join('models', args.model_name))
+                    os.path.join(args.models_dir, args.model_name))
         elif args.restore_from == 'fresh':
             ckpt = tf.train.latest_checkpoint(
-                os.path.join('models', args.model_name))
+                os.path.join(args.models_dir, args.model_name))
         else:
             ckpt = tf.train.latest_checkpoint(args.restore_from)
         print('Loading checkpoint', ckpt)
@@ -202,7 +204,7 @@ def main():
             # Sample from validation set once with fixed seed to make
             # it deterministic during training as well as across runs.
             val_data_sampler = Sampler(val_chunks, seed=1)
-            val_batches = [[val_data_sampler.sample(1024) for _ in range(args.val_batch_size)]
+            val_batches = [[val_data_sampler.sample(SAMPLE_SIZE) for _ in range(args.val_batch_size)]
                            for _ in range(args.val_batch_count)]
 
         counter = 1
@@ -265,7 +267,7 @@ def main():
                     loss=v_val_loss))
 
         def sample_batch():
-            return [data_sampler.sample(1024) for _ in range(args.batch_size)]
+            return [data_sampler.sample(SAMPLE_SIZE) for _ in range(args.batch_size)]
 
 
         avg_loss = (0.0, 0.0)

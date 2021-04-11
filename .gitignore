@@ -5,3 +5,6 @@ checkpoint
 samples
 dist-newstyle
 bin
+/venv/Scripts/
+/venv/Lib/
+/venv/
