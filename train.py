@@ -36,36 +36,48 @@ parser = argparse.ArgumentParser(
     description='Fine-tune GPT-2 on your custom dataset.',
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-parser.add_argument('--dataset', metavar='PATH', type=str, required=True, help='Input file, directory, or glob pattern (utf-8 text, or preencoded .npz files).')
+parser.add_argument('--dataset', metavar='PATH', type=str, required=True,
+                    help='Input file, directory, or glob pattern (utf-8 text, or preencoded .npz files).')
 parser.add_argument('--model_name', metavar='MODEL', type=str, default='124M', help='Pretrained model name')
 parser.add_argument('--models_dir', metavar='PATH', type=str, default='models', help='Path to models directory')
-parser.add_argument('--combine', metavar='CHARS', type=int, default=50000, help='Concatenate input files with <|endoftext|> separator into chunks of this minimum size')
+parser.add_argument('--combine', metavar='CHARS', type=int, default=50000,
+                    help='Concatenate input files with <|endoftext|> separator into chunks of this minimum size')
 parser.add_argument('--encoding', type=str, default='utf-8', help='Set the encoding for reading and writing files.')
 
 parser.add_argument('--batch_size', metavar='SIZE', type=int, default=1, help='Batch size')
 parser.add_argument('--learning_rate', metavar='LR', type=float, default=0.00002, help='Learning rate for Adam')
-parser.add_argument('--accumulate_gradients', metavar='N', type=int, default=1, help='Accumulate gradients across N minibatches.')
-parser.add_argument('--memory_saving_gradients', default=False, action='store_true', help='Use gradient checkpointing to reduce vram usage.')
-parser.add_argument('--twremat', default=False, action='store_true', help='Use tensor rematerialization (better than memory_saving_gradients and works with tensorflow 2.0).')
-parser.add_argument('--twremat_memlimit', type=str, default='12G', help='Memory usage limit/target for twremat. Can be an integer, or an integer suffixed with K/M/G for kilo/mega/giga-bytes.')
-parser.add_argument('--only_train_transformer_layers', default=False, action='store_true', help='Restrict training to the transformer blocks.')
+parser.add_argument('--accumulate_gradients', metavar='N', type=int, default=1,
+                    help='Accumulate gradients across N minibatches.')
+parser.add_argument('--memory_saving_gradients', default=False, action='store_true',
+                    help='Use gradient checkpointing to reduce vram usage.')
+parser.add_argument('--twremat', default=False, action='store_true',
+                    help='Use tensor rematerialization (better than memory_saving_gradients and works with tensorflow 2.0).')
+parser.add_argument('--twremat_memlimit', type=str, default='12G',
+                    help='Memory usage limit/target for twremat. Can be an integer, or an integer suffixed with K/M/G for kilo/mega/giga-bytes.')
+parser.add_argument('--only_train_transformer_layers', default=False, action='store_true',
+                    help='Restrict training to the transformer blocks.')
 parser.add_argument('--optimizer', type=str, default='adam', help='Optimizer. <adam|sgd>.')
-parser.add_argument('--noise', type=float, default=0.0, help='Add noise to input training data to regularize against typos.')
+parser.add_argument('--noise', type=float, default=0.0,
+                    help='Add noise to input training data to regularize against typos.')
 
 parser.add_argument('--top_k', type=int, default=40, help='K for top-k sampling.')
 parser.add_argument('--top_p', type=float, default=0.0, help='P for top-p sampling. Overrides top_k if set > 0.')
 
-parser.add_argument('--restore_from', type=str, default='latest', help='Either "latest", "fresh", or a path to a checkpoint file')
-parser.add_argument('--run_name', type=str, default='run1', help='Run id. Name of subdirectory in checkpoint/ and samples/')
+parser.add_argument('--restore_from', type=str, default='latest',
+                    help='Either "latest", "fresh", or a path to a checkpoint file')
+parser.add_argument('--run_name', type=str, default='run1',
+                    help='Run id. Name of subdirectory in checkpoint/ and samples/')
 parser.add_argument('--sample_every', metavar='N', type=int, default=100, help='Generate samples every N steps')
 parser.add_argument('--sample_length', metavar='TOKENS', type=int, default=1023, help='Sample this many tokens')
 parser.add_argument('--sample_num', metavar='N', type=int, default=1, help='Generate this many samples')
 parser.add_argument('--save_every', metavar='N', type=int, default=1000, help='Write a checkpoint every N steps')
 
-parser.add_argument('--val_dataset', metavar='PATH', type=str, default=None, help='Dataset for validation loss, defaults to --dataset.')
+parser.add_argument('--val_dataset', metavar='PATH', type=str, default=None,
+                    help='Dataset for validation loss, defaults to --dataset.')
 parser.add_argument('--val_batch_size', metavar='SIZE', type=int, default=2, help='Batch size for validation.')
 parser.add_argument('--val_batch_count', metavar='N', type=int, default=40, help='Number of batches for validation.')
-parser.add_argument('--val_every', metavar='STEPS', type=int, default=0, help='Calculate validation loss every STEPS steps.')
+parser.add_argument('--val_every', metavar='STEPS', type=int, default=0,
+                    help='Calculate validation loss every STEPS steps.')
 
 
 def maketree(path):
@@ -83,10 +95,14 @@ def randomize(context, hparams, p):
     else:
         return context
 
+
 SAMPLE_SIZE = 256
 
 
 def main():
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+
     args = parser.parse_args()
     enc = encoder.get_encoder(args.model_name, models_dir=args.models_dir)
     hparams = model.default_hparams()
@@ -97,7 +113,7 @@ def main():
         raise ValueError(
             "Can't get samples longer than window size: %s" % hparams.n_ctx)
 
-    with tf.Session() as sess:
+    with tf.Session(config=config) as sess:
         # Fully static shape required to make memory accounting in
         # twremat accurate.
         train_context = tf.placeholder(tf.int32, [args.batch_size, SAMPLE_SIZE])
@@ -160,7 +176,6 @@ def main():
         #     # revert back to version using opt_grads above.
         #     (opt_apply, train_loss, summary_loss) = (
         #         tfremat.tf_remat((opt_apply, train_loss, summary_loss), memlimit=args.twremat_memlimit))
-
 
         summary_lr = tf.summary.scalar('learning_rate', args.learning_rate)
         summaries = tf.summary.merge([summary_lr, summary_loss])
@@ -261,14 +276,13 @@ def main():
             summary_log.flush()
             print(
                 '[{counter} | {time:2.2f}] validation loss = {loss:2.2f}'
-                .format(
+                    .format(
                     counter=counter,
                     time=time.time() - start_time,
                     loss=v_val_loss))
 
         def sample_batch():
             return [data_sampler.sample(SAMPLE_SIZE) for _ in range(args.batch_size)]
-
 
         avg_loss = (0.0, 0.0)
         start_time = time.time()
@@ -300,7 +314,7 @@ def main():
 
                 print(
                     '[{counter} | {time:2.2f}] loss={loss:2.2f} avg={avg:2.2f}'
-                    .format(
+                        .format(
                         counter=counter,
                         time=time.time() - start_time,
                         loss=v_loss,
