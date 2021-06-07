@@ -9,7 +9,7 @@ import tensorflow.compat.v1 as tf
 import model, sample, encoder
 
 def interact_model(
-    model_name='124M',
+    model_name='run1',
     seed=None,
     nsamples=1,
     batch_size=1,
@@ -17,7 +17,7 @@ def interact_model(
     temperature=1,
     top_k=0,
     top_p=1,
-    models_dir='models',
+    models_dir='C:\\Users\\Halboth\\Documents\\GitHub\\gpt-2-2\\checkpoint',
 ):
     """
     Interactively run the model
